@@ -20,7 +20,7 @@ R15 (PC)  | program counter     | No
 ## Condition Codes
 cond | code | flags        | description
 -----|------|--------------|------------------------------------------
-eq   | 0000 | Z==0         | equals / equals zero
+eq   | 0000 | Z==1         | equals / equals zero
 ne   | 0001 | Z==0         | not equal
 cs/hs| 0010 | C==1         | carry set / unsigned higher or same
 cc/lo| 0011 | C==0         |
@@ -35,4 +35,4 @@ lt   | 1011 | N!=V         | signed less than
 gt   | 1100 | Z==0 && N==V | signed greater than
 le   | 1101 | Z=-1 && N!=V | signed less than or equal
 al   | 1110 |              | always executed
-     | 1111 |              | unused (advanced SIMD and floating point)
+--   | 1111 |              | unused (advanced SIMD and floating point)
