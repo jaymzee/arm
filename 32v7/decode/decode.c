@@ -30,6 +30,37 @@ const char *condition_code[] = {
 
 };
 
+const char *opcode[] = {
+    "AND", // 0000
+    "EOR", // 0001
+    "SUB", // 0010 operand1 - operand2
+    "RSB", // 0011 operand2 - operand1
+    "ADD", // 0100
+    "ADC", // 0101
+    "SBC", // 0110 operand1 - operand2 + carry - 1
+    "RSC", // 0111 operand2 - operand1 + carry - 1
+    "TST", // 1000 same as AND, but result is not written
+    "TEQ", // 1001 same as EOR, but result is not written
+    "CMP", // 1010 same as SUB, but result is not written
+    "CMN", // 1011 same as SUB, but result is not written
+    "ORR", // 1100 operand 1 OR operand 2
+    "MOV", // 1101 operand 2 (operand 1 is ignored)
+    "BIC", // 1110 operand 1 AND NOT operand 2 (bit clear)
+    "MVN", // 1111 NOT operand2 (operand 1 is ignored)
+};
+
+const char *ldr_str[] = {
+    "STR",
+    "LDR"
+};
+
+const char *shift_type[] = {
+    "LSL",
+    "LSR",
+    "ASR",
+    "ROR"
+};
+
 typedef union instruction {
     uint32_t raw;
     // basic instruction encoding
@@ -74,6 +105,34 @@ typedef union instruction {
     } t;
 } instruction;
 
+union operand2 {
+    uint16_t raw;
+    struct {
+        // operand 2 is a register
+        uint16_t Rm:4;  // 2nd operand register
+        uint16_t shft_unused:1;
+        uint16_t shft_typ:2; // shift applied to Rm
+        uint16_t shft_len:5; // shift applied to Rm
+    };
+    struct {
+        // operand 2 is an immediate value
+        uint16_t imm:8;
+        uint16_t rot:4;
+    };
+};
+
+
+int shift_len(union operand2 op2)
+{
+    if (op2.shft_len == 0) {
+        if (op2.shft_typ == 1 || op2.shft_typ == 2) {
+            return 32;
+        }
+    }
+    return op2.shft_len;
+}
+
+union operand2 op2;
 int main(int argc, char *argv[])
 {
     if (argc != 3) {
@@ -96,15 +155,32 @@ int main(int argc, char *argv[])
         const char *cc = condition_code[in.e.cond];
         if (in.b.bits == 5) {
             // branch and branch with link
-            printf("%08x branch %s %d %06x\n", in.raw, cc, in.b.L, in.b.offset);
+            printf("%08x cond=%s branch L=%d offset=0x%06x\n",
+                   in.raw, cc, in.b.L, in.b.offset);
         } else if (in.d.bits == 0) {
             // data processing
-            printf("%08x data %s %d %xh %d R%d R%d %03xh\n", in.raw, cc, in.d.I, in.d.opcode, in.d.S, in.d.Rn, in.d.Rd, in.d.opd2);
+            union operand2 opd2;
+            opd2.raw = in.d.opd2;
+            if (in.d.I) {
+                // operand 2 is an immediate
+                printf("%08x cond=%s %s S=%d R%d, R%d, opd2.rot=%d opd2.imm=0x%02x\n",
+                       in.raw, cc, opcode[in.d.opcode],
+                       in.d.S, in.d.Rd, in.d.Rn, opd2.rot, opd2.imm);
+            } else {
+                // operand 2 is a register
+                printf("%08x cond=%s %s S=%d R%d, R%d, R%d %s #%d\n",
+                       in.raw, cc, opcode[in.d.opcode],
+                       in.d.S, in.d.Rd, in.d.Rn, opd2.Rm,
+                       shift_type[opd2.shft_typ], shift_len(opd2));
+            }
         } else if (in.t.bits == 1) {
-            // data processing
-            printf("%08x ld/st %s %d %d %d %d %d %d R%d R%d %06xh\n", in.raw, cc, in.t.I, in.t.P, in.t.U, in.t.B, in.t.W, in.t.L, in.t.Rn, in.t.Rd, in.t.offset);
+            // load / store
+            printf("%08x cond=%s %s I=%d P=%d U=%d B=%d W=%d R%d R%d offset=0x%06x\n",
+                   in.raw, cc, ldr_str[in.t.L], in.t.I, in.t.P, in.t.U,
+                   in.t.B, in.t.W, in.t.Rd, in.t.Rn, in.t.offset);
         } else {
-            printf("%08x %s %xh %d\n", in.raw, cc, in.e.op1, in.e.op);
+            printf("%08x cond=%s op1=0x%x op=%d\n",
+                   in.raw, cc, in.e.op1, in.e.op);
         }
     }
 
