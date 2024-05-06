@@ -3,7 +3,7 @@
 _start:
 	mov r0, #1		// stdout
 	ldr r1, =message
-	ldr r2, =messagelen
+	mov r2, #messagelen
 	mov r7, #4
 	svc 0
 
